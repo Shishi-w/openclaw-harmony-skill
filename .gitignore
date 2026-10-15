@@ -1,0 +1,58 @@
+# ---- 本机工具配置 ----
+.zhanlu/
+.kilo/
+
+# ---- 系统文件 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# ---- IDE / 编辑器 ----
+.idea/
+.vscode/
+*.iml
+*.code-workspace
+
+# ---- 构建产物与依赖 ----
+node_modules/
+dist/
+build/
+out/
+*.tsbuildinfo
+coverage/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 环境与密钥（切勿提交）----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credential*
+openclaw.json
+~/.openclaw/
+
+# ---- 日志与临时 ----
+*.log
+logs/
+tmp/
+temp/
+
+# ---- OpenClaw 运行产物 ----
+.openclaw/
+.clawhub/
+*-snapshot.json
+
+# ---- 大文件/二进制（体验版、神经网络模型等）----
+.ohos/
+*.hap
+*.app
+*.tgz
+*.zip
+!*.zip.example
