@@ -82,11 +82,8 @@ ci(env): 添加 GitHub Actions 基础检查
 - ❌ 把本人或他人隐私（手机号/身份证等）写进公开仓库。
 - ❌ 用 `git push --force` 覆盖他人提交（如确需，先沟通 + 未推分支才可 force）。
 
-## 七、新人第一课回顾
 
-- 如果对以上不熟，先回头过一遍 `docs/03-environment/git-intro.md`。
-- 每周例会可花 5 分钟由老手带新手做一次"建分支→PR→合并"实操。
 
-## 八、.gitignore 说明
+## 七、.gitignore 说明
 
 仓库已内置 `.gitignore`，忽略：系统文件、IDE 配置、构建产物、`.env`/密钥、OpenClaw 运行产物（`.openclaw/`）、鸿蒙构建产物（`.ohos/`、`.hap`）等。新增大类型文件时优先更新 `.gitignore` 而不是硬提交。

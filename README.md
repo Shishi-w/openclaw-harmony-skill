@@ -35,12 +35,11 @@
 │   ├── 04-methodology/           # 方法论文档：方向A(逐Skill移植)、方向B(Skill VM)
 │   └── 05-protocols/             # 协作规范：Git 工作流、会议模板、任务看板
 ├── team/
-│   ├── member-roster.md          # 成员花名册（登记成员任务与领域）
 │   └── division-of-labor.md      # 分工表与小组划分
 ├── code/
 │   ├── ports/                    # 方向A：已移植/迁移中的 Skills
 │   └── skill-vm/                 # 方向B：Skill VM 原型代码
-├── templates/                    # 各类复用模板（移植记录/论文笔记/会议纪要）
+├── templates/                    # 各类复用模板（移植记录/会议纪要）
 └── notes/meetings/               # 会议纪要存档
 ```
 
@@ -49,13 +48,13 @@
 如果你是第一次加入本小组，请按以下顺序完成：
 
 1. **加入 GitHub**：注册账号，把用户名告诉组长，获得本仓库 collaborator 权限。
-2. **环境搭建**：按 `docs/03-environment/git-intro.md`（Git 基础，新手必看）和 `docs/03-environment/openclaw-setup.md`（OpenClaw 安装）完成本机环境。
+2. **环境搭建**：按 `docs/03-environment/`完成本机环境。
 3. **了解领域**：通读 `docs/01-overview/research-goals.md` 与 `docs/04-methodology/` 下两个方向的介绍。
 4. **领取任务**：在 `team/division-of-labor.md` 找到你所在小组，追踪 `docs/05-protocols/task-board.md` 中的任务。
 5. **正式干活**：遵循 `docs/05-protocols/git-workflow.md` 的分支与 PR 规范提交贡献。
 
 ```bash
-git clone https://github.com/<org>/openclaw-harmony-skill.git
+git clone https://github.com/Shishi-w/openclaw-harmony-skill.git
 cd openclaw-harmony-skill
 ```
 
