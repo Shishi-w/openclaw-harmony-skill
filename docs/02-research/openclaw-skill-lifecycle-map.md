@@ -80,7 +80,45 @@ Skill 根目录
 
 ## 4. Skill 来源与加载优先级
 
-<!-- 待区分作业要求的简化优先级与当前源码的完整优先级。 -->
+### 4.1 作业要求关注的简化链
+
+```text
+workspace > project agent > personal > bundled
+```
+
+### 4.2 当前版本的完整优先级
+
+以下顺序按优先级从高到低排列：
+
+| 优先级 | 来源 | 默认路径或说明 |
+| --- | --- | --- |
+| 1 | Workspace skills | `<workspace>/skills` |
+| 2 | Project agent skills | `<workspace>/.agents/skills` |
+| 3 | Personal agent skills | `~/.agents/skills` |
+| 4 | Managed / local skills | `<state-dir>/skills` |
+| 5 | Workshop skills | `<state-dir>/agents/<agentId>/agent/workshop-skills` |
+| 6 | Bundled / Custodian skills | 随 OpenClaw 安装发布 |
+| 7 | Extra directories / plugin skills | `skills.load.extraDirs` 与插件目录 |
+
+### 4.3 源码中的覆盖方式
+
+```mermaid
+flowchart LR
+    A[extra / plugin] --> B[bundled / custodian]
+    B --> C[workshop]
+    C --> D[managed]
+    D --> E[personal]
+    E --> F[project agent]
+    F --> G[workspace]
+    G --> H[mergeSkillRecords 按 name 合并]
+    H --> I[后出现的高优先级记录胜出]
+```
+
+`loadWorkspaceSkillSourceEntries()` 将来源按低到高组织为 `extra → bundled → workshop → managed → personal → workspace`。`resolveWorkspaceSkillDirectories()` 又在 workspace tier 内按 `project agent → workspace` 排列。`mergeSkillRecords()` 使用 Skill 的 `name` 作为键，遍历时以当前记录替换此前的同名记录，因此后加载的高优先级来源成为最终 winner。
+
+如果 Agent workspace 与实际 execution workspace 不同，`appendLowerPrecedenceSkillRecords()` 会把 execution workspace 的技能作为更低优先级补充；同名时仍保留 Agent workspace 已选出的 winner。
+
+> 作业截图中的四层顺序是核心关注点，但当前源码已经包含 managed、workshop、extra/plugin 等来源，因此本地图同时保留简化链和实际完整链。
 
 ## 5. Skill Router 与意图分发链
 
@@ -115,7 +153,7 @@ Skill 根目录
 
 - [x] 模块划分图（官方文档初稿，待源码核对）
 - [x] frontmatter 加载调用链
-- [ ] 来源与优先级图
+- [x] 来源与优先级图
 - [ ] 意图分发链
 - [ ] 加载到执行的生命周期图
 - [ ] 关键函数索引
