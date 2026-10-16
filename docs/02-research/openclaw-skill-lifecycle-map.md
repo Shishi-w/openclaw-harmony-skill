@@ -122,7 +122,48 @@ flowchart LR
 
 ## 5. Skill Router 与意图分发链
 
-<!-- 待确认是否存在独立 Router，以及 available_skills 如何进入模型上下文。 -->
+### 5.1 结论：没有单一的传统 SkillRouter
+
+当前版本中没有发现一个统一的 `SkillRouter` 类负责把意图硬编码映射到 Skill。所谓“Skill Router”更适合描述为两段式机制：
+
+1. **程序侧目录构建**：发现、合并并过滤 Skill，将可见 Skill 的名称、描述和读取位置放入系统提示词。
+2. **模型侧语义选择**：模型阅读 `<available_skills>`，根据用户任务与 `name` / `description` 的匹配程度决定是否读取某个 `SKILL.md`。
+
+### 5.2 自动选择链路
+
+```mermaid
+flowchart TD
+    A[全部 SkillEntry] --> B[resolveWorkspaceSkillPromptEntries]
+    B --> C[依赖与可见性过滤]
+    C --> D[buildSkillSnapshot]
+    D --> E[projectSkillSnapshot]
+    E --> F[formatSkillsForPromptBounded]
+    F --> G[available_skills XML]
+    G --> H[buildSkillsSection]
+    H --> I[OpenClaw System Prompt]
+    I --> J[模型扫描 name / description]
+    J --> K{是否明确匹配任务}
+    K -- 是 --> L[读取精确 location 的 SKILL.md]
+    K -- 否 --> M[不读取 Skill]
+```
+
+`formatSkillsForPromptCore()` 为每个可见 Skill 输出以下核心字段：
+
+```xml
+<skill>
+  <name>...</name>
+  <description>...</description>
+  <location>...</location>
+</skill>
+```
+
+`buildSkillsSection()` 再加入“扫描 `<available_skills>`、明确匹配时读取完整说明、不要自行猜测路径”等模型指令。只有 Agent 能访问 `read`、`skills_read` 或相应 CLI 文件工具时，这一 Skills 区段才会进入系统提示词。
+
+### 5.3 显式调用旁路
+
+用户也可以在消息中写 `$skill-name`。OpenClaw 会在当前 Agent 已授权、eligible 且 user-invocable 的 Skill 中解析该名称，并要求模型在行动前读取对应 `SKILL.md`。如果 Skill 声明 `command-dispatch: tool`，部分命令入口还可以绕过模型，直接分发到注册工具。
+
+因此，意图分发不能只画成一个函数调用：自动调用的关键决策发生在模型侧，显式 `$skill-name` 和直接 tool dispatch 则是另外两条入口。
 
 ## 6. 从加载到执行的完整生命周期
 
@@ -138,6 +179,10 @@ flowchart LR
 | 单项加载 | `src/skills/loading/local-loader.ts` | `loadSingleSkillDirectory` | 读取和验证一个 `SKILL.md` |
 | YAML 解析 | `src/skills/loading/frontmatter.ts` | `parseSkillFrontmatter` | 解析并返回 frontmatter |
 | 条目组装 | `src/skills/loading/skill-entry-metadata.ts` | `createSkillEntry` | 形成带策略和可见性信息的 `SkillEntry` |
+| Prompt 筛选 | `src/skills/loading/workspace-skill-loader.ts` | `resolveWorkspaceSkillPromptEntries` | 选出允许进入提示词的 Skill 条目 |
+| 快照构建 | `src/skills/loading/workspace-skill-prompt.ts` | `buildSkillSnapshot` | 把 eligible 条目投影为会话 Skill 快照 |
+| 目录格式化 | `src/skills/loading/skill-contract.ts` | `formatSkillsForPromptCore` | 生成 `<available_skills>` XML 目录 |
+| 系统提示词接入 | `src/agents/system-prompt-skills.ts` | `buildSkillsSection` | 生成模型可见的 Skills 指令区段 |
 
 ## 8. 第二周待精读问题
 
@@ -154,7 +199,7 @@ flowchart LR
 - [x] 模块划分图（官方文档初稿，待源码核对）
 - [x] frontmatter 加载调用链
 - [x] 来源与优先级图
-- [ ] 意图分发链
+- [x] 意图分发链
 - [ ] 加载到执行的生命周期图
 - [ ] 关键函数索引
 - [ ] 第二周待精读问题
