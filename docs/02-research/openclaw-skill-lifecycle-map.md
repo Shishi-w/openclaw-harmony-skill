@@ -1,7 +1,5 @@
 # OpenClaw Skill 生命周期源码地图
 
-> 第一周产出：只梳理模块划分与关键调用链，不做逐行精读。
-
 ## 1. 阅读范围与版本
 
 - OpenClaw 源码仓库：<https://github.com/openclaw/openclaw>
@@ -34,7 +32,7 @@ flowchart LR
     J --> K[按 Skill 指令调用工具]
 ```
 
-这张图是依据官方文档整理的第一版高层地图。后续章节将用源码文件和函数调用关系验证各节点，不在第一周展开函数内部的逐行实现。
+这张图是依据官方文档整理的高层地图，后续章节用源码文件和函数调用关系验证各节点。
 
 ## 3. SKILL.md 与 YAML frontmatter 加载链
 
@@ -65,7 +63,7 @@ flowchart TD
 - `materializeSkill()`：把正文、名称、描述、文件路径和来源整理为基础 Skill 对象。
 - `createSkillEntry()`：解析 OpenClaw metadata 与调用策略，补充是否进入运行时注册表、模型提示词和用户命令入口等暴露信息。
 
-### 3.3 第一周结论
+### 3.3 数据流总结
 
 这一阶段的核心数据变化可以概括为：
 
@@ -76,11 +74,9 @@ Skill 根目录
 → SkillEntry（含 metadata、invocation、exposure）
 ```
 
-第一周只记录上述模块边界与数据流，不展开 YAML 容错、文件边界检查、缓存及安装字段的具体实现。
-
 ## 4. Skill 来源与加载优先级
 
-### 4.1 作业要求关注的简化链
+### 4.1 核心来源优先级
 
 ```text
 workspace > project agent > personal > bundled
@@ -118,7 +114,7 @@ flowchart LR
 
 如果 Agent workspace 与实际 execution workspace 不同，`appendLowerPrecedenceSkillRecords()` 会把 execution workspace 的技能作为更低优先级补充；同名时仍保留 Agent workspace 已选出的 winner。
 
-> 作业截图中的四层顺序是核心关注点，但当前源码已经包含 managed、workshop、extra/plugin 等来源，因此本地图同时保留简化链和实际完整链。
+> 核心来源链突出 workspace、project agent、personal 与 bundled 四层；当前源码还包含 managed、workshop、extra/plugin 等来源，因此本地图同时展示核心链和实际完整链。
 
 ## 5. Skill Router 与意图分发链
 
@@ -237,17 +233,7 @@ flowchart TD
 | 显式引用 | `src/skills/discovery/chat-command-invocation.ts` | `expandExplicitSkillReferences` | 展开并校验用户输入中的 `$skill-name` |
 | 直接工具分发 | `src/skills/runtime/tool-dispatch.ts` | `resolveSkillDispatchTools` | 为声明直接分发的 Skill 解析允许调用的工具 |
 
-## 8. 第二周待精读问题
-
-- [ ] `parseFrontmatterBlockResult()` 对非法 YAML、缺字段和兼容格式分别怎样处理？
-- [ ] `shouldIncludeSkill()` 与底层 eligibility 判断在本机、远程节点和不同 OS 下有哪些分支？
-- [ ] Skill 缓存、文件监听和 Snapshot 刷新分别由哪些事件触发，当前会话何时能看到文件变更？
-- [ ] `formatSkillsForPromptBounded()` 遇到 Skill 数量或字符预算上限时怎样截断和排序？
-- [ ] `buildAgentSystemPrompt()`、工具 allowlist 与沙箱策略怎样共同限制 Skill 的实际执行能力？
-- [ ] `$skill-name`、普通聊天命令和 `command-dispatch: tool` 在解析失败或无权限时分别怎样降级？
-- [ ] Skill 路径、符号链接和目录边界有哪些安全校验，怎样避免读取预期目录之外的内容？
-
-## 9. 参考资料
+## 8. 参考资料
 
 - [OpenClaw Skills 官方文档（固定版本）](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/docs/tools/skills.md)
 - [OpenClaw System Prompt 官方文档（固定版本）](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/docs/concepts/system-prompt.md)
@@ -255,13 +241,3 @@ flowchart TD
 - [单个 SKILL.md 加载实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/loading/local-loader.ts)
 - [Skill 提示词目录格式化实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/loading/skill-contract.ts)
 - [显式 Skill 引用实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/discovery/chat-command-invocation.ts)
-
-## 第一周完成检查
-
-- [x] 模块划分图（已用固定版本源码核对）
-- [x] frontmatter 加载调用链
-- [x] 来源与优先级图
-- [x] 意图分发链
-- [x] 加载到执行的生命周期图
-- [x] 关键函数索引
-- [x] 第二周待精读问题
