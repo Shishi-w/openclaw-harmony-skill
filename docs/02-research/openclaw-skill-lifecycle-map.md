@@ -167,7 +167,52 @@ flowchart TD
 
 ## 6. 从加载到执行的完整生命周期
 
-<!-- 待补充端到端调用链图。 -->
+### 6.1 端到端调用链
+
+```mermaid
+flowchart TD
+    subgraph Program[程序侧：发现并构造 Skill 目录]
+        A[规划 Skill 来源目录] --> B[扫描并读取 SKILL.md]
+        B --> C[解析 YAML frontmatter]
+        C --> D[组装 SkillEntry]
+        D --> E[按 name 与来源优先级合并]
+        E --> F[检查 OS / bin / env / config]
+        F --> G[检查 Agent allowlist 与暴露策略]
+        G --> H[生成 Skill Snapshot]
+        H --> I[格式化 available_skills XML]
+        I --> J[注入 Agent System Prompt]
+    end
+
+    subgraph Model[模型侧：语义判断与执行规划]
+        J --> K[理解用户任务]
+        K --> L{name / description 是否明确匹配}
+        L -- 否 --> M[不使用 Skill，按普通流程处理]
+        L -- 是 --> N[通过 read / skills_read 读取精确位置的 SKILL.md]
+        N --> O[结合 Skill 正文生成下一步工具调用]
+    end
+
+    subgraph Runtime[工具运行侧：策略检查与结果返回]
+        O --> P[工具策略、权限与沙箱检查]
+        P --> Q[执行获准的工具调用]
+        Q --> R[工具结果返回模型]
+        R --> S[模型生成最终回答或继续调用工具]
+    end
+```
+
+### 6.2 三条入口的关系
+
+| 入口 | 选择发生在哪里 | 后续路径 |
+| --- | --- | --- |
+| 普通自然语言请求 | 模型根据 `<available_skills>` 的 `name` / `description` 做语义匹配 | 读取完整 `SKILL.md`，再按说明调用工具 |
+| 显式 `$skill-name` | 程序先解析并验证指定 Skill，随后提示模型必须先读对应文件 | 读取完整 `SKILL.md`，再按说明调用工具 |
+| `command-dispatch: tool` | 程序侧命令分发与工具策略 | 通过策略检查后直接调用注册工具，不经过模型选 Skill |
+
+### 6.3 生命周期边界
+
+- **Skill 被发现不等于可用**：来源扫描只能证明文件存在，仍需通过运行条件、Agent 可见性和调用策略检查。
+- **Skill 可用不等于一定执行**：自动入口中，程序只把候选目录交给模型；是否匹配由模型结合用户意图决定。
+- **读取 Skill 不等于绕过权限**：`SKILL.md` 是执行说明，不会跳过工具 allowlist、认证、沙箱或其他运行时限制。
+- **会话使用快照**：模型看到的是构造系统提示词时生成的 Skill Snapshot，不应把磁盘上的全部 Skill 直接等同于本轮可选目录。
 
 ## 7. 关键文件与函数索引
 
@@ -179,27 +224,44 @@ flowchart TD
 | 单项加载 | `src/skills/loading/local-loader.ts` | `loadSingleSkillDirectory` | 读取和验证一个 `SKILL.md` |
 | YAML 解析 | `src/skills/loading/frontmatter.ts` | `parseSkillFrontmatter` | 解析并返回 frontmatter |
 | 条目组装 | `src/skills/loading/skill-entry-metadata.ts` | `createSkillEntry` | 形成带策略和可见性信息的 `SkillEntry` |
+| 同名合并 | `src/skills/loading/skill-precedence.ts` | `mergeSkillRecords` | 以名称为键，让后加载的高优先级记录覆盖同名记录 |
+| 环境检查 | `src/skills/loading/config.ts` | `prepareSkillBinaryProbe` / `shouldIncludeSkill` | 准备依赖探测并检查 OS、二进制、环境变量和配置条件 |
+| 可见性过滤 | `src/skills/loading/workspace-skill-filter.ts` | `filterSkillEntries` | 结合 Agent 选择范围与 eligibility 筛选条目 |
 | Prompt 筛选 | `src/skills/loading/workspace-skill-loader.ts` | `resolveWorkspaceSkillPromptEntries` | 选出允许进入提示词的 Skill 条目 |
 | 快照构建 | `src/skills/loading/workspace-skill-prompt.ts` | `buildSkillSnapshot` | 把 eligible 条目投影为会话 Skill 快照 |
+| 运行时准备 | `src/agents/embedded-agent-runner/skill-runtime.ts` | `prepareEmbeddedSkills` | 为一次 Agent 运行准备快照、提示词和环境覆盖 |
 | 目录格式化 | `src/skills/loading/skill-contract.ts` | `formatSkillsForPromptCore` | 生成 `<available_skills>` XML 目录 |
 | 系统提示词接入 | `src/agents/system-prompt-skills.ts` | `buildSkillsSection` | 生成模型可见的 Skills 指令区段 |
+| 系统提示词组装 | `src/agents/system-prompt.ts` | `buildAgentSystemPrompt` | 将 Skills 区段与其他 Agent 指令合并 |
+| 单次运行注入 | `src/agents/embedded-agent-runner/run/attempt-system-prompt-prepare.ts` | `prepareEmbeddedAttemptSystemPrompt` | 把本次运行的 Skills Prompt 交给系统提示词构建器 |
+| 显式引用 | `src/skills/discovery/chat-command-invocation.ts` | `expandExplicitSkillReferences` | 展开并校验用户输入中的 `$skill-name` |
+| 直接工具分发 | `src/skills/runtime/tool-dispatch.ts` | `resolveSkillDispatchTools` | 为声明直接分发的 Skill 解析允许调用的工具 |
 
 ## 8. 第二周待精读问题
 
-- [ ] 记录第一周无法从模块和调用关系直接确认的问题。
-- [ ] 标记需要逐行阅读的关键函数。
+- [ ] `parseFrontmatterBlockResult()` 对非法 YAML、缺字段和兼容格式分别怎样处理？
+- [ ] `shouldIncludeSkill()` 与底层 eligibility 判断在本机、远程节点和不同 OS 下有哪些分支？
+- [ ] Skill 缓存、文件监听和 Snapshot 刷新分别由哪些事件触发，当前会话何时能看到文件变更？
+- [ ] `formatSkillsForPromptBounded()` 遇到 Skill 数量或字符预算上限时怎样截断和排序？
+- [ ] `buildAgentSystemPrompt()`、工具 allowlist 与沙箱策略怎样共同限制 Skill 的实际执行能力？
+- [ ] `$skill-name`、普通聊天命令和 `command-dispatch: tool` 在解析失败或无权限时分别怎样降级？
+- [ ] Skill 路径、符号链接和目录边界有哪些安全校验，怎样避免读取预期目录之外的内容？
 
 ## 9. 参考资料
 
-- [OpenClaw Skills 官方文档](https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md)
-- [OpenClaw System Prompt 官方文档](https://github.com/openclaw/openclaw/blob/main/docs/concepts/system-prompt.md)
+- [OpenClaw Skills 官方文档（固定版本）](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/docs/tools/skills.md)
+- [OpenClaw System Prompt 官方文档（固定版本）](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/docs/concepts/system-prompt.md)
+- [Skill 来源与优先级实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/loading/skill-root-loader.ts)
+- [单个 SKILL.md 加载实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/loading/local-loader.ts)
+- [Skill 提示词目录格式化实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/loading/skill-contract.ts)
+- [显式 Skill 引用实现](https://github.com/openclaw/openclaw/blob/4217e957da91629c74db29b4a96d7692d10b3d55/src/skills/discovery/chat-command-invocation.ts)
 
 ## 第一周完成检查
 
-- [x] 模块划分图（官方文档初稿，待源码核对）
+- [x] 模块划分图（已用固定版本源码核对）
 - [x] frontmatter 加载调用链
 - [x] 来源与优先级图
 - [x] 意图分发链
-- [ ] 加载到执行的生命周期图
-- [ ] 关键函数索引
-- [ ] 第二周待精读问题
+- [x] 加载到执行的生命周期图
+- [x] 关键函数索引
+- [x] 第二周待精读问题
